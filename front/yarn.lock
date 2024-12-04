@@ -1215,6 +1215,11 @@
   resolved "https://registry.yarnpkg.com/@csstools/selector-specificity/-/selector-specificity-2.2.0.tgz#2cbcf822bf3764c9658c4d2e568bd0c0cb748016"
   integrity sha512-+OJ9konv95ClSTOJCmMZqpd5+YGsB2S+x6w3E1oaM8UuR5j8nTNHYSz8c9BEPGDOCMQYIEEGlVPj/VY64iTbGw==
 
+"@cycjimmy/jsmpeg-player@^6.1.2":
+  version "6.1.2"
+  resolved "https://registry.yarnpkg.com/@cycjimmy/jsmpeg-player/-/jsmpeg-player-6.1.2.tgz#6dd83779ca6319a217fc2043064f8d9fb0866cbd"
+  integrity sha512-U9DBDe5fxHmbwQww9rFxMLNI2Wlg7DhPzI7AVFpq8GehiUP7+NwuMPXpP4zAd52sgkxtOqOeMjgE5g0ZLnQZ0w==
+
 "@eslint-community/eslint-utils@^4.2.0":
   version "4.4.1"
   resolved "https://registry.yarnpkg.com/@eslint-community/eslint-utils/-/eslint-utils-4.4.1.tgz#d1145bf2c20132d6400495d6df4bf59362fd9d56"
