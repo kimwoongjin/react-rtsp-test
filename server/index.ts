@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import { WebSocket } from 'ws';
 
 const express = require('express');
 const Stream = require('node-rtsp-stream');
@@ -6,6 +7,7 @@ const cors = require('cors');
 
 const app = express();
 const port = 8080;
+const WS_PORT = 9999;
 
 // CORS 설정 최적화
 app.use(
@@ -21,55 +23,55 @@ const STREAM_CONFIGS = [
     id: 'stream1',
     name: 'cctv1',
     streamUrl: 'rtsp://210.99.70.120:1935/live/cctv001.stream',
-    wsPort: 9991,
+    channel: 'channel1',
   },
   {
     id: 'stream2',
     name: 'cctv2',
     streamUrl: 'rtsp://210.99.70.120:1935/live/cctv002.stream',
-    wsPort: 9992,
+    channel: 'channel2',
   },
   {
     id: 'stream3',
     name: 'cctv3',
     streamUrl: 'rtsp://210.99.70.120:1935/live/cctv003.stream',
-    wsPort: 9993,
+    channel: 'channel3',
   },
   {
     id: 'stream4',
     name: 'cctv4',
     streamUrl: 'rtsp://210.99.70.120:1935/live/cctv004.stream',
-    wsPort: 9994,
+    channel: 'channel4',
   },
   {
     id: 'stream5',
     name: 'cctv5',
     streamUrl: 'rtsp://210.99.70.120:1935/live/cctv005.stream',
-    wsPort: 9995,
+    channel: 'channel5',
   },
   {
     id: 'stream6',
     name: 'cctv6',
     streamUrl: 'rtsp://210.99.70.120:1935/live/cctv006.stream',
-    wsPort: 9996,
+    channel: 'channel6',
   },
   {
     id: 'stream7',
     name: 'cctv7',
     streamUrl: 'rtsp://210.99.70.120:1935/live/cctv007.stream',
-    wsPort: 9997,
+    channel: 'channel7',
   },
   {
     id: 'stream8',
     name: 'cctv8',
     streamUrl: 'rtsp://210.99.70.120:1935/live/cctv008.stream',
-    wsPort: 9998,
+    channel: 'channel8',
   },
   {
     id: 'stream9',
     name: 'cctv9',
     streamUrl: 'rtsp://210.99.70.120:1935/live/cctv009.stream',
-    wsPort: 9999,
+    channel: 'channel9',
   },
 ];
 
@@ -82,37 +84,79 @@ const DEFAULT_FFMPEG_OPTIONS = {
   '-tune': 'zerolatency', // 지연 최소화
 };
 
-// 스트림 관리를 위한 Map
+// WebSocket 서버 설정
+const wss = new WebSocket.Server({ port: WS_PORT });
 const streamInstances = new Map();
+const channelCLients = new Map();
+
+// WebSocket 연결 처리
+wss.on('connection', (ws, req) => {
+  const channel = new URL(req.url!, `ws://localhost:${WS_PORT}`).searchParams.get('channel');
+
+  if (!channel) {
+    ws.close();
+    return;
+  }
+
+  if (!channelCLients.has(channel)) {
+    channelCLients.set(channel, new Set());
+  }
+  channelCLients.get(channel).add(ws);
+
+  console.log(`New Client connected to channel: ${channel}`);
+
+  ws.on(`close`, () => {
+    channelCLients.get(channel).delete(ws);
+    console.log(`Client disconnected from channel: ${channel}`);
+  });
+
+  ws.on(`error`, (error) => {
+    console.log(`WebSocket error on channel ${channel}:`, error);
+  });
+});
+
+// 스트림 데이터 전송 함수
+function broadcastStreamData(channel: string, data: Buffer) {
+  const clients = channelCLients.get(channel);
+
+  if (clients) {
+    clients.forEach((client: any) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(data);
+      }
+    });
+  }
+}
 
 // 단일 스트림 시작 함수
 function startSingleStream(config: (typeof STREAM_CONFIGS)[0]) {
   try {
-    const streamInstance = new Stream({
-      name: config.name,
-      streamUrl: config.streamUrl,
-      wsPort: config.wsPort,
-      ffmpegOptions: DEFAULT_FFMPEG_OPTIONS,
+    const ffmpeg = require('child_process').spawn('ffmpeg', [
+      '-i',
+      config.streamUrl,
+      '-f',
+      'mpegts',
+      '-b:v',
+      '800k',
+      '-r',
+      '30',
+      '-bf',
+      '0',
+      '-tune',
+      'zerolatency',
+      'pipe:1',
+    ]);
+
+    ffmpeg.stdout.on('data', (data: Buffer) => {
+      broadcastStreamData(config.channel, data);
     });
 
-    console.log('Stream started successfully !');
+    ffmpeg.stderr.on('data', (data: Buffer) => {
+      console.log(`FFmpeg ${config.name} stderr: ${data}`);
+    });
 
-    if (streamInstance.wsServer) {
-      streamInstance.wsServer.on('connection', (socket: any) => {
-        console.log(`New WebSocket connection established for ${config.name}`);
-
-        socket.on('close', () => {
-          console.log(`WebSocket connection closed for ${config.name}`);
-        });
-
-        socket.on('error', (error: Error) => {
-          console.error(`WebSocket error for ${config.name}:`, error);
-          setTimeout(() => reconnectStream(config), 5000);
-        });
-      });
-    }
-
-    streamInstances.set(config.id, streamInstance);
+    streamInstances.set(config.id, ffmpeg);
+    console.log(`Stream ${config.name} started successfully!`);
   } catch (error) {
     console.error(`Failed to start stream ${config.name}:`, error);
     setTimeout(() => startSingleStream(config), 5000);
@@ -129,7 +173,7 @@ function reconnectStream(config: (typeof STREAM_CONFIGS)[0]) {
   const existingStream = streamInstances.get(config.id);
   if (existingStream) {
     try {
-      existingStream.stop();
+      existingStream.kill();
       streamInstances.delete(config.id);
     } catch (error) {
       console.error(`Error stopping stream ${config.name}:`, error);
@@ -144,7 +188,7 @@ app.get('/stream-status', (req: Request, res: Response) => {
   const status = Array.from(streamInstances.entries()).map(([id, instance]) => ({
     id,
     isActive: !!instance,
-    wsPort: STREAM_CONFIGS.find((config) => config.id === id)?.wsPort,
+    wsPort: STREAM_CONFIGS.find((config) => config.id === id)?.channel,
   }));
   res.json(status);
 });
@@ -171,8 +215,9 @@ app.post('/restart-stream/:streamId', (req: Request, res: Response) => {
 startAllStreams();
 
 // 서버 시작
-app.listen(port, () => {
+const server = app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
+  console.log(`WebSocket server is running on port ${WS_PORT}`);
 });
 
 // 프로세스 종료 처리
@@ -181,12 +226,24 @@ process.on('SIGINT', gracefulShutdown);
 
 function gracefulShutdown() {
   console.log('Shutting down gracefully...');
+
   streamInstances.forEach((stream, id) => {
     try {
-      stream.stop();
+      stream.kill();
+      streamInstances.delete(id);
     } catch (error) {
       console.error('Error stopping stream during shutdown:', error);
     }
   });
-  process.exit(0);
+
+  // WebSocket 서버 종료
+  wss.close(() => {
+    console.log(`WebSocket Server Closed!`);
+    process.exit(0);
+  });
+
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 }

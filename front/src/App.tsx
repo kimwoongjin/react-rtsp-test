@@ -6,54 +6,56 @@ import './App.css';
 interface StreamConfig {
   id: string;
   name: string;
-  port: number;
+  channel: string;
 }
+
+const WS_PORT = 9999;
 
 const STREAM_CONFIGS: StreamConfig[] = [
   {
     id: 'stream1',
     name: 'CCTV1',
-    port: 9991,
+    channel: `channel1`,
   },
   {
     id: 'stream2',
     name: 'CCTV2',
-    port: 9992,
+    channel: `channel2`,
   },
   {
     id: 'stream3',
     name: 'CCTV3',
-    port: 9993,
+    channel: `channel3`,
   },
   {
     id: 'stream4',
     name: 'CCTV4',
-    port: 9994,
+    channel: `channel4`,
   },
   {
     id: 'stream5',
     name: 'CCTV5',
-    port: 9995,
+    channel: `channel5`,
   },
   {
     id: 'stream6',
     name: 'CCTV6',
-    port: 9996,
+    channel: `channel6`,
   },
   {
     id: 'stream7',
     name: 'CCTV7',
-    port: 9997,
+    channel: `channel7`,
   },
   {
     id: 'stream8',
     name: 'CCTV8',
-    port: 9998,
+    channel: `channel8`,
   },
   {
     id: 'stream9',
     name: 'CCTV9',
-    port: 9999,
+    channel: `channel9`,
   },
 ];
 
@@ -76,7 +78,7 @@ function App() {
       const videoWrapper = document.getElementById(`videoWrapper-${config.id}`);
       if (!videoWrapper) return null;
 
-      const videoUrl = `ws://localhost:${config.port}`;
+      const videoUrl = `ws://localhost:${WS_PORT}?channel=${config.channel}`;
 
       return new JSMpeg.VideoElement(videoWrapper, videoUrl, {
         autoplay: true,
