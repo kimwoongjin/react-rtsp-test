@@ -74,12 +74,21 @@ const STREAM_CONFIGS = [
 ];
 
 const DEFAULT_FFMPEG_OPTIONS = {
-  '-r': 30,
-  '-codec:v': 'mpeg1video',
-  '-b:v': '800k',
-  '-bf': 0, // B-frames 비활성화로 지연 감소
-  '-q:v': 5, // 화질 설정 (1-31, 낮을수록 좋은 품질)
-  '-tune': 'zerolatency', // 지연 최소화
+  '-r': '30',
+  '-stats': '',
+  // '-codec:v': 'mpeg1video',
+  // '-f': 'mpegts',
+  '-b:v': '2000k', // 비트레이트 증가
+  '-maxrate': '2000k', // 최대 비트레이트도 증가
+  '-bufsize': '8192k', // 버퍼 크기도 증가
+  '-muxdelay': '0.1', // 먹싱 지연 설정
+  // '-max_delay': '500000',
+  // '-bf': '0', // B-frames 비활성화로 지연 감소
+  // '-q:v': '5', // 화질 설정 (1-31, 낮을수록 좋은 품질)
+  // '-analyzeduration': '100000000',
+  // '-probesize': '100000000',
+  // '-pix_fmt': 'yuv420p',
+  // '-err_detect': 'ignore_err',
 };
 
 // 스트림 관리를 위한 Map
